@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import Counter
 from itertools import product
+import random
 from typing import Callable, Iterable, List, Tuple
 
 __all__ = [
@@ -17,19 +18,11 @@ __all__ = [
 
 
 def generate_candidates(length: int) -> List[str]:
-    """Generate every possible pin of the given length."""
     digits = '0123456789'
     return [''.join(p) for p in product(digits, repeat=length)]
 
 
 def compute_feedback(secret: str, guess: str) -> Tuple[int, int, int]:
-    """Return feedback tuple for a guess against the secret.
-
-    The tuple contains:
-        * number of digits in the correct position
-        * number of correct digits but in the wrong position
-        * number of incorrect digits
-    """
     correct_position = sum(s == g for s, g in zip(secret, guess))
     secret_counts = Counter(secret)
     guess_counts = Counter(guess)
@@ -44,22 +37,43 @@ def filter_candidates(
     guess: str,
     feedback: Tuple[int, int, int],
 ) -> List[str]:
-    """Filter possible candidates using the feedback from a guess."""
     return [cand for cand in candidates if compute_feedback(cand, guess) == feedback]
 
 
 def initial_guess(length: int) -> str:
-    """Return the initial guess following a predictable pattern."""
     return ''.join(str(i % 10) for i in range(length))
 
 
 def select_next_guess(candidates: List[str]) -> str:
-    """Choose the next guess from remaining candidates.
 
-    We prefer guesses with many unique digits to maximise the information we get
-    from the next round of feedback.
-    """
-    return max(candidates, key=lambda c: (len(set(c)), c))
+    if len(candidates) == 1:
+        return candidates[0]
+
+    sample_limit = 2000
+    if len(candidates) <= sample_limit:
+        pool = candidates
+    else:
+        rng = random.Random(0)
+        pool = rng.sample(candidates, 250)
+
+    best_guess = pool[0]
+    best_score = float("inf")
+
+    total = len(candidates)
+    for guess in pool:
+        partitions = Counter()
+        for secret in candidates:
+            partitions[compute_feedback(secret, guess)] += 1
+
+        expected_remaining = sum(v * v for v in partitions.values()) / total
+
+        if expected_remaining < best_score or (
+            expected_remaining == best_score and guess < best_guess
+        ):
+            best_score = expected_remaining
+            best_guess = guess
+
+    return best_guess
 
 
 def solve(
@@ -67,18 +81,6 @@ def solve(
     feedback_func: Callable[[str], Tuple[int, int, int]],
     return_guess: bool = False,
 ):
-    """Solve the pin using the supplied feedback provider.
-
-    Args:
-        length: length of the pin being solved.
-        feedback_func: callable receiving a guess string and returning a
-            feedback tuple ``(correct_position, correct_wrong_place, incorrect)``.
-        return_guess: if True, also return the final pin that was guessed.
-
-    Returns:
-        The number of attempts it took to deduce the pin.  If ``return_guess`` is
-        True the guessed pin is returned as a second value.
-    """
     candidates = generate_candidates(length)
     guess = initial_guess(length)
     attempts = 0
@@ -95,15 +97,6 @@ def solve(
 
 
 def interactive_feedback_factory(length: int) -> Callable[[str], Tuple[int, int, int]]:
-    """Create a feedback provider that reads responses from the user.
-
-    The provider prints the solver's guess and asks the user to supply
-    feedback describing how many digits are correct and in the correct or
-    incorrect positions.  Enter two numbers (``correct_pos`` and
-    ``correct_wrong``) or three numbers if you also wish to specify the
-    number of incorrect digits.  Type ``q`` to quit.
-    """
-
     attempt = 0
 
     def provider(guess: str) -> Tuple[int, int, int]:
@@ -145,6 +138,7 @@ def play() -> None:
     provider = interactive_feedback_factory(length)
     attempts, guess = solve(length, provider, return_guess=True)
     print(f"\nSecret pin {guess} cracked in {attempts} attempts!")
+
 
 if __name__ == "__main__":
     play()
