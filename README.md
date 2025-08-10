@@ -24,12 +24,12 @@ This is a Python-based PIN cracking game where the goal is for the program to gu
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/pin-cracker.git
+   git clone https://github.com/AndreNijman/MathPinGame.git
    ```
 
 2. Navigate to the project directory:
    ```bash
-   cd pin-cracker
+   cd MathPinGame
    ```
 
 ## Usage
@@ -37,7 +37,7 @@ This is a Python-based PIN cracking game where the goal is for the program to gu
 To play the game interactively, run the following:
 
 ```bash
-python pin_cracker.py
+python main.py
 ```
 
 You will be prompted to enter the length of the PIN and give feedback for each guess in the format:
